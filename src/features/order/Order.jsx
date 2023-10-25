@@ -1,16 +1,27 @@
 // Test ID: IIDSAT
+import { useFetcher, useLoaderData } from 'react-router-dom';
 
-import { useLoaderData } from 'react-router-dom';
+import OrderItem from './OrderItem';
+
 import { getOrder } from '../../services/apiRestaurant';
 import {
   calcMinutesLeft,
   formatCurrency,
   formatDate,
 } from '../../utils/helpers';
-import OrderItem from './OrderItem';
+import { useEffect } from 'react';
+import UpdateOrder from './UpdateOrder';
 
 function Order() {
   const order = useLoaderData();
+  const fetcher = useFetcher();
+
+  useEffect(
+    function () {
+      if (!fetcher.data && fetcher.state === 'idle') fetcher.load('/menu');
+    },
+    [fetcher],
+  );
 
   // Everyone can search for all orders, so for privacy reasons we're gonna gonna exclude names or address, these are only for the restaurant staff
   const {
@@ -22,12 +33,13 @@ function Order() {
     estimatedDelivery,
     cart,
   } = order;
+
   const deliveryIn = calcMinutesLeft(estimatedDelivery);
 
   return (
     <div className='px-4 py-6 space-y-8'>
       <div className='flex flex-wrap items-center justify-between gap-2'>
-        <h2 className='text-xl font-semibold'>Order #{id} Status</h2>
+        <h2 className='text-xl font-semibold'>Order #{id} status</h2>
 
         <div className='space-x-2'>
           {priority && (
@@ -41,7 +53,7 @@ function Order() {
         </div>
       </div>
 
-      <div className='flex flex-wrap items-center justify-between gap-2 px-6 py-5 rounded-md bg-stone-200'>
+      <div className='flex flex-wrap items-center justify-between gap-2 px-6 py-5 bg-stone-200'>
         <p className='font-medium'>
           {deliveryIn >= 0
             ? `Only ${calcMinutesLeft(estimatedDelivery)} minutes left 😃`
@@ -52,13 +64,21 @@ function Order() {
         </p>
       </div>
 
-      <ul className='border-t border-b divide-y divide-stone-200'>
+      <ul className='border-t border-b divide-y dive-stone-200'>
         {cart.map((item) => (
-          <OrderItem key={item.pizzaId} item={item} />
+          <OrderItem
+            item={item}
+            key={item.pizzaId}
+            isLoadingIngredients={fetcher.state === 'loading'}
+            ingredients={
+              fetcher?.data?.find((el) => el.id === item.pizzaId)
+                ?.ingredients ?? []
+            }
+          />
         ))}
       </ul>
 
-      <div className='px-6 py-5 space-y-2 rounded-md bg-stone-200'>
+      <div className='px-6 py-5 space-y-2 bg-stone-200'>
         <p className='text-sm font-medium text-stone-600'>
           Price pizza: {formatCurrency(orderPrice)}
         </p>
@@ -71,6 +91,8 @@ function Order() {
           To pay on delivery: {formatCurrency(orderPrice + priorityPrice)}
         </p>
       </div>
+
+      {!priority && <UpdateOrder order={order} />}
     </div>
   );
 }
